@@ -1,49 +1,40 @@
-import json
-from web3 import Web3
-from utils import init, is_dev
-from config import deployer_address
+from typing import Dict, Any
+from brownie import network, Contract, accounts, GoldenSchema
+from brownie.network.contract import ContractContainer
 
-# Load initial data
-with open('../contracts/GoldenSchemaPredicates.json') as f:
-    initial_predicates = json.load(f)
+CONTRACT_NAME = "GoldenSchema"
 
-with open('../contracts/GoldenSchemaEntityTypes.json') as f:
-    initial_entity_types = json.load(f)
 
-contract_name = 'GoldenSchema'
+def init_network(network):
+    # Implementation of network initialization
+    pass
 
-# Initialize network
-network = init()
 
-def deploy(w3: Web3):
-    network_name = network.get('name')
-    dev = is_dev(network_name)
-    
-    depl = deployer_address if not dev else w3.eth.default_account
-    args = [initial_predicates, initial_entity_types] if dev else [[], []]
-    
-    # Load contract ABI and bytecode
-    with open(f'../artifacts/{contract_name}.json') as f:
-        contract_data = json.load(f)
-        abi = contract_data['abi']
-        bytecode = contract_data['bytecode']
-    
-    Contract = w3.eth.contract(abi=abi, bytecode=bytecode)
-    
-    # Deploy contract with OpenZeppelin Transparent Proxy pattern
-    tx_hash = Contract.constructor().build_transaction({
-        'from': depl,
-        'gas': 5000000,
-        'nonce': w3.eth.get_transaction_count(depl)
-    })
-    
-    signed_txn = w3.eth.account.sign_transaction(tx_hash, private_key='YOUR_PRIVATE_KEY')
-    tx_receipt = w3.eth.send_raw_transaction(signed_txn.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_receipt)
+def deploy(network_obj: Any = network) -> None:
+    """
+    Deploy function for GoldenSchema contract
+    """
+    init_network(network_obj)
 
-    contract_address = tx_receipt.contractAddress
-    print(f"{contract_name} deployed at: {contract_address}")
-    
-if __name__ == "__main__":
-    w3 = Web3(Web3.HTTPProvider('http://localhost:8545'))
-    deploy(w3)
+    # Get deployer account
+    deployer = accounts[0]  # Or use accounts.load('deployer') for named account
+
+    # Deploy GoldenSchema if not already deployed
+    if not len(GoldenSchema):  # Check if not already deployed
+        golden_schema = GoldenSchema.deploy(
+            {"from": deployer},
+        )
+    else:
+        golden_schema = GoldenSchema[-1]
+
+    return golden_schema
+
+
+def main():
+    deploy()
+
+
+# Metadata for deployment management
+DEPLOYMENT_ID = "deploy_golden_schema"
+TAGS = [CONTRACT_NAME]
+DEPENDENCIES = []  # No dependencies for this base contract
